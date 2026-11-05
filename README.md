@@ -5,6 +5,7 @@ A tiny single-page web app that removes the Postparty outro animation from the e
 Everything runs **in your browser**. Your clip is never uploaded anywhere. The only network request the page makes is a one-time download of the video encoder (see [How it works](#how-it-works)), which your browser then caches.
 
 **Live:** https://codymkw.github.io/postparty-trimmer
+
 **Original release** (more options, optional watermark): https://codymkw.github.io/postparty-trimmer/original-release
 
 > Unofficial fan tool. Not affiliated with or endorsed by Postparty or Epic Games.
