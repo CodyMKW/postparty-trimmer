@@ -33,10 +33,10 @@ The same clip, three ways. Click a thumbnail to watch the video. The files live 
 
 | 1. Original | 2. Outro removed | 3. Outro removed + logo |
 | :---: | :---: | :---: |
-| [![Clip with the outro](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_with_outro.jpg)](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_with_outro.mp4) | [![Clip with the outro removed](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_without_outro.jpg)](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_without_outro.mp4) | [![Clip with the outro removed and the logo in the bottom right](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_with_logo_bottom_right.jpg)](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_with_logo_bottom_right.mp4) |
+| [![Clip with the outro](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_with_outro.jpg)](https://github.com/CodyMKW/postparty-trimmer/blob/main/videos/clip_with_outro.mp4) | [![Clip with the outro removed](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_without_outro.jpg)](https://github.com/CodyMKW/postparty-trimmer/blob/main/videos/clip_without_outro.mp4) | [![Clip with the outro removed and the logo in the bottom right](https://raw.githubusercontent.com/CodyMKW/postparty-trimmer/main/videos/clip_with_logo_bottom_right.jpg)](https://github.com/CodyMKW/postparty-trimmer/blob/main/videos/clip_with_logo_bottom_right.mp4) |
 | The clip as exported from Postparty, with the outro animation at the end. | The outro is gone and the clip ends on the last frame of gameplay. | Same as #2, plus the optional semi-transparent Postparty logo in the bottom-right corner. |
 
-Prefer the repo's own file pages? [`clip_with_outro.mp4`](videos/clip_with_outro.mp4) · [`clip_without_outro.mp4`](videos/clip_without_outro.mp4) · [`clip_with_logo_bottom_right.mp4`](videos/clip_with_logo_bottom_right.mp4)
+Prefer a bare video that opens full-window in your browser? Once GitHub Pages is on, these play directly: [original](https://codymkw.github.io/postparty-trimmer/videos/clip_with_outro.mp4) · [outro removed](https://codymkw.github.io/postparty-trimmer/videos/clip_without_outro.mp4) · [outro removed + logo](https://codymkw.github.io/postparty-trimmer/videos/clip_with_logo_bottom_right.mp4)
 
 ---
 
