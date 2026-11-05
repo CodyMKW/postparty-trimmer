@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Postparty Outro Trimmer</title>
-<meta name="description" content="Remove the Postparty outro from a clip and tag the file as clipped in Postparty. Runs entirely in your browser.">
+<meta name="description" content="Remove the Postparty outro from a clip and add a small Postparty logo watermark so Postparty still gets credit. Runs entirely in your browser.">
 <style>
   :root {
     --bg: #0e0e12;
@@ -108,7 +108,7 @@
 <body>
 <main>
   <h1><span>Postparty</span> Outro Trimmer</h1>
-  <p class="sub">Drop a Postparty clip. The outro animation at the end gets cut off, and the file is quietly tagged as <em>clipped in Postparty</em>. Everything runs in your browser, so nothing is uploaded.</p>
+  <p class="sub">Drop a Postparty clip. The outro animation at the end gets cut off, and a small Postparty logo is added in the bottom-right corner so Postparty still gets credit. Everything runs in your browser, so nothing is uploaded.</p>
 
   <label id="drop" for="file" tabindex="-1">
     <input id="file" type="file" accept="video/*,.mp4,.mov,.m4v">
@@ -121,7 +121,6 @@
       <h2>Preview</h2>
       <video id="player" controls playsinline preload="auto"></video>
       <div id="status" class="status busy" role="status" aria-live="polite">Loading clip…</div>
-      <div id="marker-note" class="status ok hidden"></div>
     </div>
 
     <div class="card">
@@ -154,22 +153,14 @@
     <div class="card">
       <h2>Export</h2>
       <div class="opts">
-        <label class="chk">
-          <input id="tag" type="checkbox" checked>
-          <span>Add the “clipped in Postparty” tag
-            <span class="muted small"><br>Written into the MP4 as metadata (<code>postparty_clipped</code>, plus a Comment). It doesn't change the picture or sound.</span></span>
-        </label>
         <div>
-          <label class="chk">
-            <input id="wm" type="checkbox">
-            <span>Add the Postparty logo as a small watermark
-              <span class="muted small"><br>Semi-transparent logo in the bottom-right corner, so Postparty still gets a little credit even with the outro gone.</span></span>
-          </label>
-          <div class="opt-row" style="margin:8px 0 0 26px">
+          <strong>Postparty logo</strong>
+          <div class="muted small">A small, semi-transparent Postparty logo is added to the bottom-right corner of every export, so Postparty still gets credit for the clip.</div>
+          <div class="opt-row" style="margin-top:8px">
             <label for="wmop" class="muted small">Opacity</label>
             <select id="wmop">
-              <option value="0.35">Subtle</option>
-              <option value="0.55" selected>Normal</option>
+              <option value="0.35" selected>Subtle</option>
+              <option value="0.55">Normal</option>
               <option value="0.8">Bold</option>
             </select>
           </div>
@@ -199,10 +190,6 @@
         <a id="download" class="btn primary" download>Download trimmed clip</a>
         <span id="resinfo" class="muted small"></span>
       </div>
-      <details style="margin-top:12px">
-        <summary class="muted small" style="cursor:pointer">Tags embedded in the exported file</summary>
-        <pre id="tags"></pre>
-      </details>
     </div>
   </section>
 
@@ -219,8 +206,6 @@
 const CDN = {
   core: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd',
 };
-const MARKER_KEY = 'postparty_clipped';     // the metadata key we write and look for
-const MARKER_COMMENT = 'Clipped in Postparty (outro removed)';
 const SCAN_LOOKBACK_S = 30;                 // how far back from the end to look for the outro
 const SCAN_STEP_S = 0.25;                   // coarse step while walking backwards
 const CUT_SAFETY_S = 0.005;                 // cut this much before the first outro frame
@@ -229,12 +214,12 @@ const CUT_SAFETY_S = 0.005;                 // cut this much before the first ou
 const $ = id => document.getElementById(id);
 const el = {
   drop: $('drop'), file: $('file'), dropTitle: $('drop-title'), editor: $('editor'),
-  player: $('player'), status: $('status'), markerNote: $('marker-note'),
+  player: $('player'), status: $('status'),
   slider: $('slider'), track: $('track'), cutnum: $('cutnum'), keepinfo: $('keepinfo'), durlabel: $('durlabel'),
   tKeep: $('thumb-keep'), tGone: $('thumb-gone'),
-  tag: $('tag'), wm: $('wm'), wmop: $('wmop'), quality: $('quality'), exportBtn: $('export'), exportInfo: $('exportinfo'),
+  wmop: $('wmop'), quality: $('quality'), exportBtn: $('export'), exportInfo: $('exportinfo'),
   prog: $('prog'), enc: $('encstatus'),
-  result: $('result'), resVideo: $('resvideo'), download: $('download'), resInfo: $('resinfo'), tags: $('tags'),
+  result: $('result'), resVideo: $('resvideo'), download: $('download'), resInfo: $('resinfo'),
 };
 
 /* hidden video + canvas used for scanning frames and drawing thumbnails */
@@ -383,19 +368,6 @@ $('preview').onclick = () => {
 };
 
 /* ---------- loading a file ---------- */
-async function readMarker(f) {
-  try {
-    const n = Math.min(f.size, 4 * 1024 * 1024);
-    const parts = [f.slice(0, n), f.slice(Math.max(0, f.size - n))];
-    for (const part of parts) {
-      const bytes = new Uint8Array(await part.arrayBuffer());
-      const text = new TextDecoder('latin1').decode(bytes);
-      if (text.includes(MARKER_KEY)) return true;
-    }
-  } catch (_) {}
-  return false;
-}
-
 async function loadFile(f) {
   if (!f) return;
   const token = ++fileToken;
@@ -408,12 +380,6 @@ async function loadFile(f) {
   el.dropTitle.textContent = f.name;
   el.exportBtn.disabled = true;
   setStatus('busy', 'Loading clip…');
-
-  readMarker(f).then(has => {
-    if (token !== fileToken) return;
-    el.markerNote.classList.toggle('hidden', !has);
-    if (has) el.markerNote.innerHTML = 'This file already carries the <b>clipped in Postparty</b> tag, so its outro has probably been removed already.';
-  });
 
   el.player.src = objectUrl;
   scanV.src = objectUrl;
@@ -582,19 +548,10 @@ async function exportClip() {
     setEnc('Reading the clip…');
     await ff.writeFile(inName, new Uint8Array(await file.arrayBuffer()));
 
-    const meta = [];
-    if (el.tag.checked) {
-      meta.push(
-        '-metadata', `${MARKER_KEY}=true`,
-        '-metadata', `postparty_trimmed_at=${cut.toFixed(3)}`,
-        '-metadata', `postparty_original_duration=${duration.toFixed(3)}`,
-        '-metadata', `comment=${MARKER_COMMENT}`,
-      );
-    }
     const inputs = ['-i', inName];
     let maps = ['-map', '0:v:0', '-map', '0:a?'];
     let filter = [];
-    if (el.wm.checked) {
+    {                                           // the logo is always added
       const h = scanV.videoHeight || 720, w = scanV.videoWidth || 1280;
       await ff.writeFile('wm.png', await makeWatermarkPng(w, h, parseFloat(el.wmop.value)));
       const margin = Math.round(h * 0.02);
@@ -604,7 +561,7 @@ async function exportClip() {
     }
     const base = [...inputs, '-t', cut.toFixed(3), ...filter, ...maps, '-map_metadata', '0',
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', el.quality.value, '-pix_fmt', 'yuv420p'];
-    const tail = ['-movflags', '+faststart+use_metadata_tags', ...meta, outName];
+    const tail = ['-movflags', '+faststart', outName];
 
     onProgress = p => {
       const v = clamp(p * (duration / Math.max(cut, 0.001)), 0, 1);   // ffmpeg reports against the full input length
@@ -619,12 +576,6 @@ async function exportClip() {
     if (code !== 0) throw new Error('ffmpeg exited with code ' + code);
 
     const data = await ff.readFile(outName);
-    let tagText = '(tag reading failed)';
-    try {
-      await ff.exec(['-i', outName, '-f', 'ffmetadata', 'meta.txt']);
-      tagText = await ff.readFile('meta.txt', 'utf8');
-      await ff.deleteFile('meta.txt');
-    } catch (_) {}
     await ff.deleteFile(inName).catch(() => {});
     await ff.deleteFile('wm.png').catch(() => {});
     await ff.deleteFile(outName).catch(() => {});
@@ -636,7 +587,6 @@ async function exportClip() {
     el.download.download = file.name.replace(/\.[^.]+$/, '') + '-trimmed.mp4';
     el.resVideo.src = url;
     el.resInfo.textContent = `${(blob.size / 1048576).toFixed(1)} MB · ${fmt(cut)} long · was ${(file.size / 1048576).toFixed(1)} MB / ${fmt(duration)}`;
-    el.tags.textContent = tagText.replace(/^;FFMETADATA1\n?/, '').trim() || '(no tags)';
     el.result.classList.remove('hidden');
     el.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setEnc('Done.');
