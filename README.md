@@ -27,6 +27,20 @@ Optional extras, both in the Export section:
 
 ---
 
+## Samples
+
+The same clip, three ways. The files live in the [`videos/`](videos) folder.
+
+| 1. Original | 2. Outro removed | 3. Outro removed + logo |
+| :---: | :---: | :---: |
+| <video src="videos/clip_with_outro.mp4" controls muted width="280"></video> | <video src="videos/clip_without_outro.mp4" controls muted width="280"></video> | <video src="videos/clip_with_logo_bottom_right.mp4" controls muted width="280"></video> |
+| [`clip_with_outro.mp4`](videos/clip_with_outro.mp4) | [`clip_without_outro.mp4`](videos/clip_without_outro.mp4) | [`clip_with_logo_bottom_right.mp4`](videos/clip_with_logo_bottom_right.mp4) |
+| The clip as exported from Postparty, with the outro animation at the end. | The outro is gone and the clip ends on the last frame of gameplay. | Same as #2, plus the optional semi-transparent Postparty logo in the bottom-right corner. |
+
+If the players above don't show up (GitHub doesn't always render video tags for files in the repo), click the file names to open each video.
+
+---
+
 ## The watermark (totally optional)
 
 The watermark is **completely optional**. It's off by default, and you don't have to use it. The outro is gone either way.
@@ -75,7 +89,11 @@ No special headers are needed (no COOP/COEP), because the page uses the single-t
 ```
 .
 ├── index.html   # the entire app: HTML + CSS + JS, logo embedded
-└── README.md
+├── README.md
+└── videos/      # sample clips shown in the README (not used by the app)
+    ├── clip_with_outro.mp4
+    ├── clip_without_outro.mp4
+    └── clip_with_logo_bottom_right.mp4
 ```
 
 ---
