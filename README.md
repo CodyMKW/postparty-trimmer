@@ -4,9 +4,9 @@ A tiny single-page web app that removes the Postparty outro animation from the e
 
 Everything runs **in your browser**. Your clip is never uploaded anywhere. The only network request the page makes is a one-time download of the video encoder (see [How it works](#how-it-works)), which your browser then caches.
 
-**Live:** https://codymkw.github.io/postparty-trimmer
-
-**Original release** (more options, optional watermark): https://codymkw.github.io/postparty-trimmer/original-release
+- **Live:** https://codymkw.github.io/postparty-trimmer
+- **Original release** (more options, optional watermark): https://codymkw.github.io/postparty-trimmer/original-release
+- **Clip editor** (trim + stickers): https://codymkw.github.io/postparty-trimmer/editor
 
 > Unofficial fan tool. Not affiliated with or endorsed by Postparty or Epic Games.
 
@@ -23,6 +23,8 @@ Everything runs **in your browser**. Your clip is never uploaded anywhere. The o
 | Best for | Making sure Postparty still gets credit | Wanting the outro gone without a watermark, or a hidden tag only |
 
 The main version is the more professional one: the outro is gone, and Postparty is still credited because the logo is part of the picture, so it survives re-uploads to Discord, YouTube and similar sites. See [Original release](#original-release) for the version with the extra options.
+
+Looking for more than an outro trim? There's also a separate [Clip editor](#clip-editor) with a trim timeline and resizable, rotatable stickers.
 
 ---
 
@@ -110,12 +112,111 @@ If you want credit that does survive re-uploads, use the watermark. That's why t
 
 ---
 
+## Clip editor
+
+Live at https://codymkw.github.io/postparty-trimmer/editor
+
+A fuller editor for Postparty clips: trim the video, then decorate it with PNG stickers you can drag, resize and rotate right on the video. Like the other pages, everything runs in your browser and nothing is uploaded.
+
+Unlike the two trimmer pages, the editor does **not** add the Postparty logo automatically. The logo is in the sticker library though, so you can place it yourself wherever you like.
+
+### What you can do
+
+- **Trim.** A filmstrip timeline with draggable start and end handles, a playhead you can scrub, and a looping preview of the trimmed section. When a clip loads, the editor looks for the Postparty outro and trims it off for you. **Remove Postparty outro** runs that detection again and **Reset trim** puts the whole clip back. (It uses the same detector described in [Finding the outro](#1-finding-the-outro).)
+- **Add stickers.** Click a sticker in the library to put it on the video, then:
+  - drag it to **move** it,
+  - drag the square handle at the bottom-right corner to **resize** it (the shape stays the same),
+  - drag the round handle above it to **rotate** it (hold **Shift** to snap to 15°).
+- **Fine-tune in the side panel.** Size (2% to 150% of the video width), rotation (−180° to 180°), opacity (10% to 100%), flip, bring forward / send back (layer order), duplicate and delete.
+- **Limit a sticker to part of the clip.** Tick **Only show during a time range** and set From and To in seconds (on the original clip's timeline, the same one the timeline shows). **From = playhead** and **To = playhead** fill the numbers in for you. A sticker outside its range is hidden in the preview, and shown faded while it's selected so you can still edit it.
+- **Use your own images.** Click **+ Add your own images**, drop an image anywhere on the page, or paste one from the clipboard (PNG with transparency works best). Your images are added to the library for the session and placed on the video straight away. Hover one and click the **×** to remove it from the library. They aren't saved, so they're gone when you reload the page.
+- **Export.** Pick a quality (the same Near-lossless / Balanced / Smaller presets as above) and optionally tick **Remove audio**, then click **Export video**.
+
+### Default stickers
+
+The library comes with 12 stickers built into the page: Duck, Ankha, Shrek, Cat girl, Heart hug, Crying, R.I.P., Sleepy dragon, three Mii faces (sunglasses, green hair, glasses) and the Postparty logo. They're stored in `editor/index.html` as lossless WebP data URIs in the `DEFAULT_STICKERS` list near the top of the script. Each entry looks like this:
+
+```js
+{ "id": "duck", "label": "Duck", "src": "data:image/webp;base64,..." }
+```
+
+To add or remove a default sticker, add or delete an entry. `label` is the hover text. Transparent images work best, and cropping away empty margins keeps the selection box snug around the picture.
+
+### Keyboard shortcuts
+
+| Key | What it does |
+| --- | --- |
+| `Space` | Play / pause |
+| `I` | Set the trim start to the playhead |
+| `O` | Set the trim end to the playhead |
+| `Delete` / `Backspace` | Remove the selected sticker |
+| Arrow keys | Nudge the selected sticker (hold `Shift` for bigger steps). With nothing selected: step the playhead by one frame (about 1/30 s), or 1 s with `Shift` |
+| `Esc` | Deselect |
+| `Ctrl`/`Cmd` + `V` | Paste an image from the clipboard as a new sticker |
+
+### How the editor exports
+
+Everything you see in the preview is burned into the exported video:
+
+1. Each sticker is drawn onto a transparent PNG at its **final pixel size** (scaled, rotated, flipped and faded exactly as shown), with a canvas in your browser. The PNG covers the sticker's rotated bounding box.
+2. The clip and the sticker PNGs go into ffmpeg's in-memory filesystem, and ffmpeg overlays them one after another in layer order.
+3. Stickers with a time range get an `enable` condition so they only appear during that range.
+
+The command looks like this (the `-i st*.png` inputs and the filter chain repeat once per sticker; with no stickers it's just `-map 0:v:0`, and **Remove audio** swaps the audio options for `-an`):
+
+```bash
+ffmpeg -ss <start> -i in.mp4 \
+       -i st0.png -i st1.png \
+       -t <length> \
+       -filter_complex "[0:v:0][1:v]overlay=x=X0:y=Y0:format=auto[v1];\
+                        [v1][2:v]overlay=x=X1:y=Y1:format=auto:enable='between(t,A,B)'[v2];\
+                        [v2]format=yuv420p[vout]" \
+       -map "[vout]" -map 0:a? \
+       -c:v libx264 -preset veryfast -crf <16|21|26> -pix_fmt yuv420p \
+       -c:a copy \                                  # falls back to: -c:a aac -b:a 192k
+       -movflags +faststart \
+       out.mp4
+```
+
+Details:
+
+- `-ss <start>` before `-i` makes the trim frame-accurate because the video is re-encoded anyway. `-t <length>` is the trimmed length.
+- `X` and `Y` are the top-left of the sticker's bounding box in video pixels, so stickers can hang off the edge of the frame and get clipped, just like in the preview.
+- `A` and `B` are the From and To times **minus the trim start**, because the exported clip's time starts at 0.
+- Sticker positions and sizes are stored as fractions of the video frame, so the preview matches the export no matter how big the preview is on your screen.
+- A sticker whose time range is completely outside the trimmed section is left out of the export.
+
+The editor reuses the same ffmpeg.wasm setup as the trimmer (see [Cutting and encoding](#2-cutting-and-encoding)). In headless Chromium, trimming a ~29 s 896×504 clip with two stickers took about 46 seconds.
+
+### Editor constants
+
+At the top of the editor's script:
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `SCAN_LOOKBACK_S` | `30` | How far back from the end to look for the outro. |
+| `SCAN_STEP_S` | `0.25` | Coarse step while walking backwards through the outro. |
+| `CUT_SAFETY_S` | `0.005` | How far before the first outro frame to cut. |
+| `MIN_CLIP_S` | `0.1` | Shortest trimmed section the handles allow, in seconds. |
+| `FILM_FRAMES` | `16` | Thumbnails in the timeline filmstrip. |
+| `CDN_CORE` | `@ffmpeg/core@0.12.10` on jsDelivr | Where the encoder is downloaded from. |
+
+### Good to know
+
+- Small stickers that are scaled up a lot (for example a 112 px image on a 1080p clip) will look soft. Bigger source images stay sharper.
+- Sticker times and the trim both work in the original clip's timeline.
+- Rotated phone videos (rotation metadata) aren't handled specially, same as the trimmer.
+- The preview uses your browser's own video decoder, so the clip has to be something your browser can play (H.264 MP4 is the safe choice).
+- It was built and tested in Chromium with real mouse drags for moving, resizing and rotating, and the exported frames were checked against where the stickers were placed. Touch dragging on a real phone hasn't been tested.
+
+---
+
 ## Using it
 
 ### Online
 Use the live page at https://codymkw.github.io/postparty-trimmer, or host `index.html` yourself anywhere that serves static files (GitHub Pages, Nekoweb, Cloudflare Pages, etc.). There is nothing to build and no server code.
 
-To host it on GitHub Pages: put `index.html` in the repo root, then go to **Settings → Pages** and publish from the `main` branch (root folder). The original release is picked up automatically from the `original-release/` folder.
+To host it on GitHub Pages: put `index.html` in the repo root, then go to **Settings → Pages** and publish from the `main` branch (root folder). The original release and the clip editor are picked up automatically from the `original-release/` and `editor/` folders.
 
 ### Locally
 Serve the folder over HTTP instead of opening the file directly:
@@ -124,6 +225,7 @@ Serve the folder over HTTP instead of opening the file directly:
 python3 -m http.server 8000
 # main version:      http://localhost:8000/
 # original release:  http://localhost:8000/original-release/
+# clip editor:       http://localhost:8000/editor/
 ```
 
 No special headers are needed (no COOP/COEP), because the page uses the single-threaded encoder.
@@ -141,6 +243,8 @@ No special headers are needed (no COOP/COEP), because the page uses the single-t
 .
 ├── index.html            # main version: always trims + always adds the logo (Subtle by default)
 ├── README.md
+├── editor/
+│   └── index.html        # clip editor: trim + draggable, resizable, rotatable stickers
 ├── original-release/
 │   └── index.html        # original version: optional tag, optional watermark
 └── videos/               # sample clips + thumbnails shown in the README (not used by the apps)
@@ -152,7 +256,7 @@ No special headers are needed (no COOP/COEP), because the page uses the single-t
     └── clip_with_logo_bottom_right.jpg
 ```
 
-Each HTML file is the entire app: HTML + CSS + JS, with the logo embedded.
+Each HTML file is the entire app: HTML + CSS + JS, with its images embedded.
 
 ---
 
@@ -255,4 +359,5 @@ The logo is decoded by the browser, drawn on a canvas at the chosen opacity (wit
 ## Credits
 
 - Video processing by [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) (`@ffmpeg/core`), which bundles ffmpeg and x264 under their own licenses.
+- The default stickers in the clip editor are fan images of characters from games, shows and other media, and belong to their respective creators. They are included only as fun stickers.
 - The Postparty name and logo belong to Postparty. This project isn't affiliated with them, it just tries to keep some credit flowing their way.
